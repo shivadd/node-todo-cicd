@@ -11,7 +11,8 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh 'docker-compose build'
+                    // Build Docker images using Docker Compose
+                    sh 'docker-compose build --no-cache'
                 }
             }
         }
@@ -19,10 +20,11 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    sh '''
-                        docker-compose down || true
-                        docker-compose up -d
-                    '''
+                    // Stop and remove existing containers
+                    sh 'docker-compose down'
+                    
+                    // Start containers with the updated images
+                    sh 'docker-compose up -d'
                 }
             }
         }
