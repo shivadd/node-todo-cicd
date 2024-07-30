@@ -4,4 +4,3 @@ services:
     image: my-node-app:latest
     ports:
       - "8000:8000"
-    container_name: my-node-app
