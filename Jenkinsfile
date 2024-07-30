@@ -11,7 +11,6 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Build Docker image using Docker Compose
                     sh 'docker-compose build'
                 }
             }
@@ -20,9 +19,8 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    // Stop and remove any existing containers
                     sh '''
-                        docker-compose down
+                        docker-compose down || true
                         docker-compose up -d
                     '''
                 }
