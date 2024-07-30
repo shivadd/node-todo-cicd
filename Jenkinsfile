@@ -27,7 +27,7 @@ pipeline {
                     // Log in to Docker Hub
                     docker.withRegistry('https://index.docker.io/v1/', DOCKER_CREDENTIALS_ID) {
                         // Tag the Docker image
-                        sh 'docker tag your-image simulanisdevjagadeesha/your-repo:latest'
+                        sh 'docker tag my-node-app:latest simulanisdevjagadeesha/your-repo:latest'
                         
                         // Push the Docker image to Docker Hub
                         sh 'docker push simulanisdevjagadeesha/your-repo:latest'
