@@ -28,7 +28,7 @@ pipeline {
                             docker rm my-node-app
                         fi
                         
-                        // Run Docker container
+                        # Run Docker container
                         docker run -d --name my-node-app -p 8000:8000 my-node-app:latest
                     '''
                 }
