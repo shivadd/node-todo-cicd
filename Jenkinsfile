@@ -22,10 +22,13 @@ pipeline {
                 script {
                     // Stop and remove any existing container with the same name
                     sh '''
-                        if [ $(docker ps -q -f name=my-node-app) ]; then
+                        container_id=$(docker ps -q -f name=my-node-app)
+                        if [ -n "$container_id" ]; then
                             docker stop my-node-app
                             docker rm my-node-app
                         fi
+                        
+                        // Run Docker container
                         docker run -d --name my-node-app -p 8000:8000 my-node-app:latest
                     '''
                 }
