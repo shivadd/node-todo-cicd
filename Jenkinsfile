@@ -20,8 +20,14 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    // Run Docker container
-                    sh 'docker run -d -p 8000:8000 my-node-app:latest'
+                    // Stop and remove any existing container with the same name
+                    sh '''
+                        if [ $(docker ps -q -f name=my-node-app) ]; then
+                            docker stop my-node-app
+                            docker rm my-node-app
+                        fi
+                        docker run -d --name my-node-app -p 8000:8000 my-node-app:latest
+                    '''
                 }
             }
         }
