@@ -2,15 +2,13 @@ pipeline {
     agent any
 
     environment {
-        GITHUB_CREDENTIALS = credentials('dokerCreds')
         DOCKERHUB_CREDENTIALS = credentials('docker-hub')
-        IMAGE_NAME = 'simulanisdevjagadeesha/node-todo-cicd'
+        GITHUB_CREDENTIALS = credentials('dokerCreds')
     }
 
     stages {
         stage('Checkout') {
             steps {
-                // Checkout the repository using GitHub credentials
                 git credentialsId: 'dokerCreds', url: 'https://github.com/Simulanis-Dev-Jagadeesha/node-todo-cicd.git'
             }
         }
@@ -18,7 +16,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    dockerImage = docker.build("${env.IMAGE_NAME}:${env.BUILD_ID}")
+                    docker.build("simulanisdevjagadeesha/node-todo-cicd:latest")
                 }
             }
         }
@@ -27,9 +25,26 @@ pipeline {
             steps {
                 script {
                     docker.withRegistry('https://index.docker.io/v1/', 'docker-hub') {
-                        dockerImage.push("${env.BUILD_ID}")
-                        dockerImage.push("latest")
+                        docker.image("simulanisdevjagadeesha/node-todo-cicd:latest").push()
                     }
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                script {
+                    def deployServer = 'ubuntu@ip-172-31-39-207'
+                    def dockerImage = 'simulanisdevjagadeesha/node-todo-cicd:latest'
+                    
+                    sh """
+                    ssh -o StrictHostKeyChecking=no ${deployServer} '
+                        docker pull ${dockerImage} && \
+                        docker stop my-node-todo-app || true && \
+                        docker rm my-node-todo-app || true && \
+                        docker run -d --name my-node-todo-app -p 8000:8000 ${dockerImage}
+                    '
+                    """
                 }
             }
         }
@@ -37,7 +52,6 @@ pipeline {
 
     post {
         always {
-            // Clean up the workspace after the build
             cleanWs()
         }
     }
