@@ -3,13 +3,8 @@ pipeline {
 
     environment {
         AWS_REGION = 'us-east-1'
-        ECR_REPOSITORY = 'node-todo-app'
-        ECR_URL = "<account-id>.dkr.ecr.${AWS_REGION}.amazonaws.com"
-        IMAGE_NAME = "${ECR_REPOSITORY}:latest"
-    }
-
-    triggers {
-        pollSCM('* * * * *') // Check for changes every minute
+        ECR_REGISTRY = '<account-id>.dkr.ecr.us-east-1.amazonaws.com'
+        IMAGE_NAME = 'node-todo-app'
     }
 
     stages {
@@ -22,7 +17,8 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh 'docker build -t ${IMAGE_NAME} .'
+                    // Build Docker image
+                    sh 'docker build -t ${IMAGE_NAME}:latest .'
                 }
             }
         }
@@ -30,9 +26,18 @@ pipeline {
         stage('Push to ECR') {
             steps {
                 script {
-                    sh 'aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_URL}'
-                    sh 'docker tag ${IMAGE_NAME} ${ECR_URL}/${ECR_REPOSITORY}:${BUILD_NUMBER}'
-                    sh 'docker push ${ECR_URL}/${ECR_REPOSITORY}:${BUILD_NUMBER}'
+                    // Get ECR login password
+                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'awscred']]) {
+                        sh '''
+                        $(aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY})
+                        '''
+                    }
+                    
+                    // Tag and push Docker image to ECR
+                    sh '''
+                    docker tag ${IMAGE_NAME}:latest ${ECR_REGISTRY}/${IMAGE_NAME}:latest
+                    docker push ${ECR_REGISTRY}/${IMAGE_NAME}:latest
+                    '''
                 }
             }
         }
@@ -40,14 +45,21 @@ pipeline {
         stage('Deploy to EKS') {
             steps {
                 script {
-                    withAWS(region: "${AWS_REGION}", credentials: 'awscred') {
+                    // EKS deployment logic
+                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'awscred']]) {
                         sh '''
-                        kubectl apply -f k8s/deployment.yaml
-                        kubectl apply -f k8s/service.yaml
+                        aws eks --region ${AWS_REGION} update-kubeconfig --name <eks-cluster-name>
+                        kubectl apply -f deployment.yaml
                         '''
                     }
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            // Cleanup actions, notifications, etc.
         }
     }
 }
