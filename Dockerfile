@@ -1,20 +1,20 @@
-# Node Base Image
-FROM node:12.2.0-alpine
+# Use an official Node.js runtime as a parent image
+FROM node:18
 
-# Working Directory
-WORKDIR /node
+# Set the working directory in the container
+WORKDIR /usr/src/app
 
-# Copy the Code
-COPY . .
+# Copy package.json and package-lock.json
+COPY package*.json ./
 
-# Install the dependencies
+# Install dependencies
 RUN npm install
 
-# Run tests
-RUN npm run test
+# Copy the rest of the application code
+COPY . .
 
-# Expose the port
-EXPOSE 8000
+# Expose the port your app runs on
+EXPOSE 3000
 
-# Run the code
-CMD ["node", "app.js"]
+# Command to run the application
+CMD ["npm", "start"]
