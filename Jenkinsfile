@@ -1,46 +1,55 @@
 pipeline {
     agent any
+
     environment {
-        AWS_DEFAULT_REGION = 'us-east-1'
-        ECR_REPO_NAME = 'node-todo-app'
-        IMAGE_TAG = "latest"
-        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
+        AWS_REGION = 'us-east-1'
+        ECR_REPOSITORY = 'node-todo-app'
+        ECR_URL = "<account-id>.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        IMAGE_NAME = "${ECR_REPOSITORY}:latest"
     }
+
+    triggers {
+        pollSCM('* * * * *') // Check for changes every minute
+    }
+
     stages {
         stage('Checkout Code') {
             steps {
                 git credentialsId: 'gitcred', url: 'https://github.com/Simulanis-Dev-Jagadeesha/node-todo-cicd.git'
             }
         }
+
         stage('Build Docker Image') {
             steps {
                 script {
-                    def customImage = docker.build("${ECR_REPO_NAME}:${IMAGE_TAG}")
+                    sh 'docker build -t ${IMAGE_NAME} .'
                 }
             }
         }
+
         stage('Push to ECR') {
             steps {
                 script {
-                    docker.withRegistry("https://${ECR_REGISTRY}", 'awscred') {
-                        docker.image("${ECR_REPO_NAME}:${IMAGE_TAG}").push()
+                    withDockerRegistry([credentialsId: 'awscred', url: "${ECR_URL}"]) {
+                        sh 'docker login -u AWS -p $(aws ecr get-login-password --region ${AWS_REGION}) ${ECR_URL}'
+                        sh 'docker tag ${IMAGE_NAME} ${ECR_URL}/${ECR_REPOSITORY}:${BUILD_NUMBER}'
+                        sh 'docker push ${ECR_URL}/${ECR_REPOSITORY}:${BUILD_NUMBER}'
                     }
                 }
             }
         }
+
         stage('Deploy to EKS') {
             steps {
                 script {
-                    sh """
-                    aws eks update-kubeconfig --region $AWS_DEFAULT_REGION --name $EKS_CLUSTER_NAME
-                    kubectl apply -f deployment.yaml
-                    kubectl apply -f service.yaml
-                    """
+                    withAWS(region: "${AWS_REGION}", credentials: 'awscred') {
+                        sh '''
+                        kubectl apply -f k8s/deployment.yaml
+                        kubectl apply -f k8s/service.yaml
+                        '''
+                    }
                 }
             }
         }
-    }
-    triggers {
-        pollSCM('H/5 * * * *') // Polls the SCM every 5 minutes
     }
 }
