@@ -5,7 +5,6 @@ pipeline {
         ECR_REPO_NAME = 'node-todo-app'
         IMAGE_TAG = "latest"
         ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
-        EKS_CLUSTER_NAME = 'my-cluster'
     }
     stages {
         stage('Checkout Code') {
@@ -42,6 +41,6 @@ pipeline {
         }
     }
     triggers {
-        pollSCM('H/5 * * * *') // Polls the SCM every 5 minutes (fallback if webhook fails)
+        pollSCM('H/5 * * * *') // Polls the SCM every 5 minutes
     }
 }
