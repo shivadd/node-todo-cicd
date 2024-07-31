@@ -3,12 +3,12 @@ pipeline {
 
     environment {
         AWS_REGION = 'us-east-1'
-        ECR_REGISTRY = '<account-id>.dkr.ecr.us-east-1.amazonaws.com'
-        IMAGE_NAME = 'node-todo-app'
+        ECR_REPOSITORY = '<account-id>.dkr.ecr.us-east-1.amazonaws.com/node-todo-app'
+        EKS_CLUSTER = '<your-cluster-name>'
     }
 
     stages {
-        stage('Checkout Code') {
+        stage('Checkout') {
             steps {
                 git credentialsId: 'gitcred', url: 'https://github.com/Simulanis-Dev-Jagadeesha/node-todo-cicd.git'
             }
@@ -17,8 +17,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Build Docker image
-                    sh 'docker build -t ${IMAGE_NAME}:latest .'
+                    docker.build('node-todo-app:latest')
                 }
             }
         }
@@ -26,18 +25,13 @@ pipeline {
         stage('Push to ECR') {
             steps {
                 script {
-                    // Get ECR login password
-                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'awscred']]) {
+                    withCredentials([usernamePassword(credentialsId: 'awscred', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                         sh '''
-                        $(aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY})
+                            aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPOSITORY}
+                            docker tag node-todo-app:latest ${ECR_REPOSITORY}:latest
+                            docker push ${ECR_REPOSITORY}:latest
                         '''
                     }
-                    
-                    // Tag and push Docker image to ECR
-                    sh '''
-                    docker tag ${IMAGE_NAME}:latest ${ECR_REGISTRY}/${IMAGE_NAME}:latest
-                    docker push ${ECR_REGISTRY}/${IMAGE_NAME}:latest
-                    '''
                 }
             }
         }
@@ -45,21 +39,15 @@ pipeline {
         stage('Deploy to EKS') {
             steps {
                 script {
-                    // EKS deployment logic
-                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'awscred']]) {
+                    withCredentials([usernamePassword(credentialsId: 'awscred', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                         sh '''
-                        aws eks --region ${AWS_REGION} update-kubeconfig --name <eks-cluster-name>
-                        kubectl apply -f deployment.yaml
+                            aws eks --region ${AWS_REGION} update-kubeconfig --name ${EKS_CLUSTER}
+                            kubectl apply -f kubernetes/deployment.yaml
+                            kubectl apply -f kubernetes/service.yaml
                         '''
                     }
                 }
             }
-        }
-    }
-
-    post {
-        always {
-            // Cleanup actions, notifications, etc.
         }
     }
 }
