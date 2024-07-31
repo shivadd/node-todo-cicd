@@ -2,45 +2,48 @@ pipeline {
     agent any
 
     environment {
-        ECR_URI = '058264319429.dkr.ecr.us-east-1.amazonaws.com/node-todo-app'
+        AWS_REGION = 'us-east-1'
+        ECR_REPOSITORY_URI = '058264319429.dkr.ecr.us-east-1.amazonaws.com/node-todo-app'
+        DOCKER_IMAGE_NAME = 'node-todo-app'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git credentialsId: 'gitcred', url: 'https://github.com/Simulanis-Dev-Jagadeesha/node-todo-cicd.git'
+                checkout scm
             }
         }
+
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh 'docker build -t node-todo-app:latest .'
+                    docker.build(DOCKER_IMAGE_NAME, '.')
                 }
             }
         }
+
         stage('Push to ECR') {
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'awscred']]) {
+                withCredentials([usernamePassword(credentialsId: 'awscred', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     script {
-                        sh 'aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 058264319429.dkr.ecr.us-east-1.amazonaws.com'
-                        sh 'docker tag node-todo-app:latest 058264319429.dkr.ecr.us-east-1.amazonaws.com/node-todo-app:latest'
-                        sh 'docker push 058264319429.dkr.ecr.us-east-1.amazonaws.com/node-todo-app:latest'
+                        def ecrLogin = sh(script: 'aws ecr get-login-password --region $AWS_REGION', returnStdout: true).trim()
+                        sh "echo $ecrLogin | docker login --username AWS --password-stdin $ECR_REPOSITORY_URI"
+                        docker.tag("${DOCKER_IMAGE_NAME}:latest", "${ECR_REPOSITORY_URI}:latest")
+                        docker.push("${ECR_REPOSITORY_URI}:latest")
                     }
                 }
             }
         }
+
         stage('Deploy to EKS') {
             steps {
-                script {
-                    // Add your deployment script or steps here
+                withCredentials([file(credentialsId: 'aws-eks-kubeconfig', variable: 'KUBECONFIG')]) {
+                    script {
+                        sh 'kubectl apply -f k8s/deployment.yaml'
+                        sh 'kubectl apply -f k8s/service.yaml'
+                    }
                 }
             }
-        }
-    }
-
-    post {
-        always {
-            cleanWs()
         }
     }
 }
