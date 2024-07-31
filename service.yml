@@ -4,8 +4,9 @@ metadata:
   name: node-todo-app
 spec:
   type: LoadBalancer
-  ports:
-    - port: 80
-      targetPort: 3000
   selector:
     app: node-todo-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
