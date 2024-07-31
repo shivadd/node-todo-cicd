@@ -3,10 +3,10 @@ kind: Service
 metadata:
   name: node-todo-app
 spec:
-  type: LoadBalancer
   selector:
     app: node-todo-app
   ports:
     - protocol: TCP
       port: 80
       targetPort: 3000
+  type: LoadBalancer
