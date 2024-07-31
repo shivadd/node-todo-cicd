@@ -18,4 +18,4 @@ spec:
       - name: node-todo-app
         image: 058264319429.dkr.ecr.us-east-1.amazonaws.com/node-todo-app:latest
         ports:
-        - containerPort: 8000  # Updated to match the application port
+        - containerPort: 8000
