@@ -3,8 +3,9 @@ pipeline {
 
     environment {
         AWS_REGION = 'us-east-1'
-        ECR_REPOSITORY = '<account-id>.dkr.ecr.us-east-1.amazonaws.com/node-todo-app'
-        EKS_CLUSTER = '<your-cluster-name>'
+        ECR_REPOSITORY_URI = '123456789012.dkr.ecr.us-east-1.amazonaws.com/node-todo-app' // Replace with your ECR repository URI
+        ECR_REPOSITORY_NAME = 'node-todo-app'
+        CLUSTER_NAME = 'your-cluster-name' // Replace with your EKS cluster name
     }
 
     stages {
@@ -17,20 +18,21 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build('node-todo-app:latest')
+                    def image = docker.build("node-todo-app:latest")
                 }
             }
         }
 
         stage('Push to ECR') {
             steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: 'awscred', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
-                        sh '''
-                            aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPOSITORY}
-                            docker tag node-todo-app:latest ${ECR_REPOSITORY}:latest
-                            docker push ${ECR_REPOSITORY}:latest
-                        '''
+                withCredentials([aws(credentialsId: 'awscred', region: "${env.AWS_REGION}")]) {
+                    script {
+                        // Login to ECR
+                        sh "aws ecr get-login-password --region ${env.AWS_REGION} | docker login --username AWS --password-stdin ${env.ECR_REPOSITORY_URI}"
+                        
+                        // Tag and push Docker image
+                        sh "docker tag node-todo-app:latest ${env.ECR_REPOSITORY_URI}:latest"
+                        sh "docker push ${env.ECR_REPOSITORY_URI}:latest"
                     }
                 }
             }
@@ -38,16 +40,23 @@ pipeline {
 
         stage('Deploy to EKS') {
             steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: 'awscred', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
-                        sh '''
-                            aws eks --region ${AWS_REGION} update-kubeconfig --name ${EKS_CLUSTER}
-                            kubectl apply -f kubernetes/deployment.yaml
-                            kubectl apply -f kubernetes/service.yaml
-                        '''
+                withCredentials([aws(credentialsId: 'awscred', region: "${env.AWS_REGION}")]) {
+                    script {
+                        // Update kubeconfig
+                        sh "aws eks update-kubeconfig --name ${env.CLUSTER_NAME} --region ${env.AWS_REGION}"
+                        
+                        // Apply Kubernetes configuration
+                        sh "kubectl apply -f k8s/deployment.yaml"
+                        sh "kubectl apply -f k8s/service.yaml"
                     }
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
         }
     }
 }
