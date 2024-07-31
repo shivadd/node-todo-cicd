@@ -30,11 +30,9 @@ pipeline {
         stage('Push to ECR') {
             steps {
                 script {
-                    withDockerRegistry([credentialsId: 'awscred', url: "${ECR_URL}"]) {
-                        sh 'docker login -u AWS -p $(aws ecr get-login-password --region ${AWS_REGION}) ${ECR_URL}'
-                        sh 'docker tag ${IMAGE_NAME} ${ECR_URL}/${ECR_REPOSITORY}:${BUILD_NUMBER}'
-                        sh 'docker push ${ECR_URL}/${ECR_REPOSITORY}:${BUILD_NUMBER}'
-                    }
+                    sh 'aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_URL}'
+                    sh 'docker tag ${IMAGE_NAME} ${ECR_URL}/${ECR_REPOSITORY}:${BUILD_NUMBER}'
+                    sh 'docker push ${ECR_URL}/${ECR_REPOSITORY}:${BUILD_NUMBER}'
                 }
             }
         }
