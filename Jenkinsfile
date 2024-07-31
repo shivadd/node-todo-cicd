@@ -1,51 +1,47 @@
 pipeline {
     agent any
-
     environment {
-        DOCKER_CREDENTIALS_ID = 'finaldockercred'  // Use your Docker Hub credentials ID here
+        AWS_DEFAULT_REGION = 'us-east-1'
+        ECR_REPO_NAME = 'node-todo-app'
+        IMAGE_TAG = "latest"
+        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
+        EKS_CLUSTER_NAME = 'my-cluster'
     }
-
     stages {
-        stage('Checkout') {
+        stage('Checkout Code') {
             steps {
-                git credentialsId: 'dokerCreds', url: 'https://github.com/Simulanis-Dev-Jagadeesha/node-todo-cicd.git'
+                git credentialsId: 'gitcred', url: 'https://github.com/Simulanis-Dev-Jagadeesha/node-todo-cicd.git'
             }
         }
-
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Build Docker images using Docker Compose
-                    sh 'docker-compose build --no-cache'
+                    def customImage = docker.build("${ECR_REPO_NAME}:${IMAGE_TAG}")
                 }
             }
         }
-
-        stage('Push Docker Image') {
+        stage('Push to ECR') {
             steps {
                 script {
-                    // Log in to Docker Hub
-                    docker.withRegistry('https://index.docker.io/v1/', DOCKER_CREDENTIALS_ID) {
-                        // Tag the Docker image
-                        sh 'docker tag my-node-app:latest simulanisdevjagadeesha/your-repo:latest'
-                        
-                        // Push the Docker image to Docker Hub
-                        sh 'docker push simulanisdevjagadeesha/your-repo:latest'
+                    docker.withRegistry("https://${ECR_REGISTRY}", 'awscred') {
+                        docker.image("${ECR_REPO_NAME}:${IMAGE_TAG}").push()
                     }
                 }
             }
         }
-
-        stage('Deploy') {
+        stage('Deploy to EKS') {
             steps {
                 script {
-                    // Stop and remove existing containers
-                    sh 'docker-compose down'
-                    
-                    // Start containers with the updated images
-                    sh 'docker-compose up -d'
+                    sh """
+                    aws eks update-kubeconfig --region $AWS_DEFAULT_REGION --name $EKS_CLUSTER_NAME
+                    kubectl apply -f deployment.yaml
+                    kubectl apply -f service.yaml
+                    """
                 }
             }
         }
+    }
+    triggers {
+        pollSCM('H/5 * * * *') // Polls the SCM every 5 minutes (fallback if webhook fails)
     }
 }
