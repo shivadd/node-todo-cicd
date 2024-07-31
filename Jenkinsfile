@@ -4,6 +4,7 @@ pipeline {
     environment {
         AWS_REGION = 'us-east-1'
         ECR_REPOSITORY_URI = '058264319429.dkr.ecr.us-east-1.amazonaws.com/node-todo-app'
+        IMAGE_TAG = "latest-${env.BUILD_ID}" // Unique tag for each build
     }
 
     stages {
@@ -16,7 +17,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh 'docker build -t ${ECR_REPOSITORY_URI}:latest .'
+                    sh 'docker build -t ${ECR_REPOSITORY_URI}:${IMAGE_TAG} .'
                 }
             }
         }
@@ -32,7 +33,7 @@ pipeline {
         stage('Push Docker Image to ECR') {
             steps {
                 script {
-                    sh 'docker push ${ECR_REPOSITORY_URI}:latest'
+                    sh 'docker push ${ECR_REPOSITORY_URI}:${IMAGE_TAG}'
                 }
             }
         }
@@ -41,7 +42,7 @@ pipeline {
             steps {
                 withAWS(region: AWS_REGION, credentials: 'awscred') {
                     sh 'aws eks update-kubeconfig --name my-cluster'
-                    sh 'kubectl apply -f deployment.yml'
+                    sh "kubectl set image deployment/node-todo-app node-todo-app=${ECR_REPOSITORY_URI}:${IMAGE_TAG} --record"
                     sh 'kubectl apply -f service.yml'
                 }
             }
