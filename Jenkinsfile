@@ -5,7 +5,7 @@ pipeline {
         AWS_REGION = 'us-east-1'
         ECR_REPOSITORY_URI = '058264319429.dkr.ecr.us-east-1.amazonaws.com/node-todo-app'
         IMAGE_TAG = "latest-${env.BUILD_ID}" // Unique tag for each build
-        EKS_CLUSTER_NAME = 'my-new-cluster' // Update this with your actual EKS cluster name
+        EKS_CLUSTER_NAME = 'my-eks-cluster' // Updated with your actual EKS cluster name
     }
 
     stages {
