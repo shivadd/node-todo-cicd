@@ -41,14 +41,11 @@ pipeline {
         stage('Deploy to EKS') {
             steps {
                 withAWS(region: AWS_REGION, credentials: 'awscred') {
-                    sh 'aws eks update-kubeconfig --name my-new-cluster'
-                    sh 'kubectl apply -f deployment.yml'
+                    sh 'aws eks update-kubeconfig --name my-cluster'
+                    sh "kubectl set image deployment/node-todo-app node-todo-app=${ECR_REPOSITORY_URI}:${IMAGE_TAG} --record"
                     sh 'kubectl apply -f service.yml'
-                    sh "kubectl set image deployment/node-todo-app node-todo-app=${ECR_REPOSITORY_URI}:${IMAGE_TAG}"
                 }
             }
         }
     }
 }
-
-
